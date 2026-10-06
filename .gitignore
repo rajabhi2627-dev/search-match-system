@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+*.secret
+.streamlit/secrets.toml
+
+# Local database and generated datasets (regenerate with the app or seed script)
+storage/
+*.db
+*.sqlite
+*.sqlite3
+exports/
+*.xlsx
+!docs/**/*.xlsx
+
+# Temporary / OS files
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

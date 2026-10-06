@@ -1,0 +1,132 @@
+# ---------------------------------------------------------------------------
+# Search, Match & Merge – Phase 1 configuration
+#
+# Everything here is a PROTOTYPE default.  Weights and thresholds are copied
+# into the database as algorithm version 1.0 the first time the app starts.
+# After that, change them from the "Algorithm Versions" page (which creates a
+# new version) – never by editing the database by hand.
+# ---------------------------------------------------------------------------
+
+app:
+  title: "Search, Match & Merge – Performance Monitoring"
+  synthetic_banner: "Demo application using synthetic data only."
+  # When the database is empty on first start (e.g. fresh Streamlit Cloud deploy) seed this much synthetic data.
+  # Set either value to 0 to disable. Data can still be regenerated from the Master Data / Incoming pages.
+  auto_seed_master: 2000
+  auto_seed_incoming: 100
+
+database:
+  # Relative to the project root. The folder is created automatically.
+  path: "storage/smm.db"
+
+algorithm:
+  default_version_name: "1.0"
+  description: "Baseline prototype configuration"
+
+  # Field weights (must sum to 100)
+  weights:
+    name: 25
+    email: 25
+    phone: 25
+    address: 15
+    dob: 5
+    company: 5
+
+  # Decision thresholds (prototype settings, NOT regulatory requirements)
+  thresholds:
+    match: 85
+    manual_review: 65
+    ambiguity_gap: 5
+
+  # Blocking passes that are enabled. Order is the order of execution.
+  blocking_passes:
+    - phone
+    - email
+    - postal_surname
+    - city_surname
+    - phonetic_surname_city
+    - first_token_city
+
+  # Optional rare-value / information weighting (OFF by default)
+  rare_value_weighting: false
+
+  # Number of candidates returned
+  top_n: 5
+
+  # If the master database is smaller than this, compare against every record
+  # (blocking adds no value for tiny datasets).
+  full_scan_if_master_below: 50
+
+# Score levels used by conflict detection
+conflict:
+  strong: 90      # a field score >= strong is treated as "strong agreement"
+  weak: 30        # a field score <= weak is treated as "clear disagreement"
+  name_mismatch: 50
+
+# Confidence point system (deterministic)
+confidence:
+  high_min_points: 70
+  medium_min_points: 45
+
+# Rare-value weighting limits – factor can never go outside this range
+rare_value:
+  min_factor: 0.7
+  max_factor: 1.5
+  slope: 0.2
+
+# Material change (percentage points) used by regression testing
+regression:
+  material_change_pp: 2.0
+
+# Green / Amber / Red monitoring thresholds (PROTOTYPE values, user editable)
+# direction: "higher_is_better" or "lower_is_better"
+monitoring_thresholds:
+  - metric: hit_rate
+    label: "HIT Rate"
+    direction: higher_is_better
+    green: 90
+    amber: 80
+  - metric: precision
+    label: "Precision"
+    direction: higher_is_better
+    green: 95
+    amber: 90
+  - metric: recall
+    label: "Recall"
+    direction: higher_is_better
+    green: 90
+    amber: 80
+  - metric: f1_score
+    label: "F1 Score"
+    direction: higher_is_better
+    green: 90
+    amber: 80
+  - metric: manual_review_rate
+    label: "Manual Review Rate"
+    direction: lower_is_better
+    green: 10
+    amber: 20
+  - metric: dispute_rate
+    label: "Dispute Rate"
+    direction: lower_is_better
+    green: 2
+    amber: 5
+  - metric: merge_error_rate
+    label: "Merge Error Rate"
+    direction: lower_is_better
+    green: 1
+    amber: 3
+  - metric: false_positive_rate
+    label: "False Positive Rate"
+    direction: lower_is_better
+    green: 2
+    amber: 5
+  - metric: false_negative_rate
+    label: "False Negative Rate"
+    direction: lower_is_better
+    green: 10
+    amber: 20
+
+generator:
+  seed: 42
+  twin_pct: 2          # % of synthetic master records that get a "near twin"
