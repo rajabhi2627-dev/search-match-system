@@ -77,6 +77,18 @@ def render() -> None:
         with st.expander(title):
             st.write(text)
 
+    with st.expander("Evaluation data – synthetic generator and the FEBRL benchmark"):
+        st.markdown(
+            "Two sources of labelled data feed the performance metrics:\n\n"
+            "1. **Own synthetic generator** – Indian-style records with 12 controlled scenarios (exact, spelling, word order, phone format, "
+            "address abbreviation, missing fields, conflicting e-mail, ambiguous twins, new person, duplicates, noise). Useful because every "
+            "scenario is isolated and explainable.\n"
+            "2. **FEBRL benchmark** (Freely Extensible Biomedical Record Linkage, ANU) – the standard public datasets used in the record-linkage "
+            "literature. Originals become the master, duplicates become incoming records, the record IDs give the ground truth, and a hold-out "
+            "share of originals creates true no-match cases. This provides an *independent* measurement of precision, recall, F1, FPR and FNR "
+            "that does not depend on our own generator. Load it from **Master Data → Benchmark dataset – FEBRL**."
+        )
+
     st.subheader("Worked example – live")
     st.caption("The same example is used across the application. Master C01023 vs an incoming record with formatting differences.")
     c1, c2 = st.columns(2)

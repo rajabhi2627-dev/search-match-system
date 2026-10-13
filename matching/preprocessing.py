@@ -47,7 +47,7 @@ COMPANY_SUFFIXES = {"pvt", "ltd", "limited", "private", "llp", "inc", "co", "cor
 _PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _SPACE_RE = re.compile(r"\s+")
 
-DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%d.%m.%Y", "%d %b %Y", "%d %B %Y", "%m/%d/%Y"]
+DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%d.%m.%Y", "%d %b %Y", "%d %B %Y", "%m/%d/%Y", "%Y%m%d"]
 
 
 # ------------------------------------------------------------- primitives

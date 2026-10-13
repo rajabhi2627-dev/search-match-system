@@ -112,6 +112,49 @@ def generate_incoming_data(n: int, match_pct: float, no_match_pct: float, noisy_
     return summary
 
 
+# ------------------------------------------------------ FEBRL benchmark
+@dataclass
+class FebrlLoadSummary:
+    dataset: str
+    batch_id: str
+    master: int
+    incoming: int
+    held_out: int
+    true_match: int
+    true_no_match: int
+    run_id: str | None = None
+
+
+def load_febrl_data(dataset: str = "dataset1", df: pd.DataFrame | None = None, holdout_pct: float = 10.0,
+                    seed: int = 42, id_as_phone: bool = True, run_now: bool = True,
+                    actor: str = "user") -> FebrlLoadSummary:
+    """Replace master + incoming with a FEBRL benchmark split, store its ground truth and (optionally) run matching.
+
+    `df` lets the caller pass an uploaded FEBRL file instead of a bundled dataset."""
+    from data.febrl_loader import load_bundled, split_febrl
+
+    frame = df if df is not None else load_bundled(dataset)
+    split = split_febrl(frame, dataset=dataset, holdout_pct=holdout_pct, seed=seed, id_as_phone=id_as_phone)
+    init_db()
+    with get_session() as session:
+        repo.ensure_defaults(session)
+        repo.clear_master_and_dependents(session, actor)
+        repo.insert_master_records(session, split.master_records, actor, action="FEBRL_LOADED")
+        batch_id = repo.next_batch_id(session, "FEB")
+        ids = repo.insert_incoming_records(session, split.incoming_records, batch_id,
+                                           source=f"febrl:{dataset}", actor=actor, action="FEBRL_LOADED")
+        rows = [{"incoming_id": ids[t["row"]], "true_entity_id": t["true_entity_id"], "true_decision": t["true_decision"]}
+                for t in split.ground_truth]
+        repo.upsert_ground_truth(session, rows, source=f"febrl:{dataset}", actor=actor)
+    s = split.stats
+    summary = FebrlLoadSummary(dataset=dataset, batch_id=batch_id, master=s["master"], incoming=s["incoming"],
+                               held_out=s["held_out_originals"], true_match=s["true_match"], true_no_match=s["true_no_match"])
+    log.info("FEBRL %s loaded: %s master, %s incoming (%s held out)", dataset, s["master"], s["incoming"], s["held_out_originals"])
+    if run_now:
+        summary.run_id = run_batch(batch_id, run_type="benchmark", actor=actor).run_id
+    return summary
+
+
 # -------------------------------------------------------------- matching
 @dataclass
 class RunSummary:

@@ -134,16 +134,18 @@ def generate_person(rng: random.Random, used_emails: set[str], used_phones: set[
 
 def make_twin(person: dict, rng: random.Random, used_emails: set[str], used_phones: set[str]) -> dict:
     """A different person who looks confusingly similar (same name, same city)."""
-    first, last = person["name"].split(" ", 1)
+    parts = (person.get("name") or "Unknown Person").split(" ", 1)
+    first, last = parts[0], (parts[1] if len(parts) > 1 else "Kumar")
     street = rng.choice(STREETS)
+    postal = str(person.get("postal_code") or "")
     return {
         **person,
         "email": _email_for(first, last, rng, used_emails),
         "phone": _phone_for(rng, used_phones),
-        "address": f"{rng.randint(1, 250)} {street}, {person['city']}",
+        "address": f"{rng.randint(1, 250)} {street}, {person.get('city') or ''}".strip(" ,"),
         "date_of_birth": _dob_for(rng),
         "company": rng.choice(COMPANIES),
-        "postal_code": person["postal_code"][:3] + f"{rng.randint(1, 99):03d}",
+        "postal_code": (postal[:3] if len(postal) >= 3 else f"{rng.randint(100, 999)}") + f"{rng.randint(1, 99):03d}",
     }
 
 

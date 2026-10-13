@@ -54,6 +54,8 @@ def render_master() -> None:
               + replaced)
         st.rerun()
 
+    _render_febrl_section()
+
     st.subheader("Preview (first 200 records)")
     if preview.empty:
         st.info("No master data yet.")
@@ -66,6 +68,77 @@ def render_master() -> None:
         with get_session() as session:
             full = repo.master_frame(session)
         st.download_button("⬇️ Download full master data (.xlsx)", df_to_excel_bytes({"master": full}), file_name="master_data.xlsx")
+
+
+def _render_febrl_section() -> None:
+    """Load the FEBRL record-linkage benchmark instead of synthetic data."""
+    st.subheader("Benchmark dataset – FEBRL")
+    with st.expander("❓ What is FEBRL and how is it used here?"):
+        st.markdown(
+            "**FEBRL** (Freely Extensible Biomedical Record Linkage, Australian National University) ships the standard "
+            "synthetic benchmark datasets used to evaluate record-linkage algorithms. Every record ID encodes the truth: "
+            "`rec-1070-org` is an **original**, `rec-1070-dup-0` is a deliberately **corrupted duplicate** of it "
+            "(typos, swapped name parts, missing values, changed suburb or postcode, wrong digits in the date of birth).\n\n"
+            "Loading a dataset here: **originals → master database**, **duplicates → incoming batch**, and the ID link becomes the "
+            "**ground-truth label**, so precision / recall / F1 / FPR / FNR are measured on an independent, published benchmark "
+            "rather than on data our own generator produced.\n\n"
+            "A chosen share of originals is **held out** of the master; their duplicates then have no true counterpart and are "
+            "labelled NO_MATCH – this is what gives true negatives and a meaningful false-positive rate.\n\n"
+            "FEBRL has no e-mail, phone or company. *given_name + surname* → **Name**, *street + address lines* → **Address**, "
+            "*suburb / state / postcode* → **City / State / Postal code**, *date_of_birth* → **DOB**. The numeric *soc_sec_id* "
+            "(a person identifier) can be loaded into the **Phone** slot so the identifier blocking pass and exact-ID rule can "
+            "be exercised – it is an identifier, not a real phone number. Missing fields are handled by weight re-normalization.\n\n"
+            "Data source: FEBRL datasets as redistributed by the open-source `recordlinkage` project (Christen & Churches, ANU)."
+        )
+    from data.febrl_loader import FEBRL_DATASETS, bundled_available, load_bundled, preview_frame, read_febrl
+    from workflows.runner import load_febrl_data
+
+    with st.form("febrl_form"):
+        c1, c2, c3 = st.columns([2, 1, 1])
+        choice = c1.selectbox("Dataset", list(FEBRL_DATASETS), format_func=lambda k: FEBRL_DATASETS[k]["label"])
+        holdout = c2.slider("Hold out % of originals", 0, 50, 10, 5,
+                            help="These originals are excluded from the master so their duplicates become true NO_MATCH cases.")
+        seed = c3.number_input("Random seed", min_value=0, value=42)
+        c4, c5 = st.columns(2)
+        id_as_phone = c4.checkbox("Load soc_sec_id into the Phone (identifier) slot", value=True)
+        run_now = c5.checkbox("Run Search & Match immediately", value=True)
+        upload = st.file_uploader("…or upload your own FEBRL-format CSV (rec_id, given_name, surname, …)", type=["csv"])
+        go = st.form_submit_button("📚 LOAD FEBRL DATASET (replaces current data)", type="primary")
+
+    if go:
+        try:
+            if upload is not None:
+                frame, name = read_febrl(upload.getvalue()), f"upload:{upload.name}"
+            elif bundled_available(choice):
+                frame, name = load_bundled(choice), choice
+            else:
+                st.error(f"Bundled files for {choice} are missing in data/febrl/. Upload the CSV instead.")
+                return
+            with st.spinner(f"Loading {name} and matching…"):
+                s = load_febrl_data(name, df=frame, holdout_pct=float(holdout), seed=int(seed),
+                                    id_as_phone=id_as_phone, run_now=run_now)
+        except ValueError as exc:
+            st.error(str(exc))
+            return
+        if s.run_id:
+            st.session_state["selected_run_id"] = s.run_id
+        st.cache_resource.clear()
+        flash(f"FEBRL **{s.dataset}** loaded: {s.master:,} master records, {s.incoming:,} incoming records in batch **{s.batch_id}** "
+              f"({s.true_match:,} true matches, {s.true_no_match:,} true no-matches from {s.held_out:,} held-out originals)."
+              + (f" Run **{s.run_id}** completed – see Match Results, Ground Truth and Performance." if s.run_id else ""))
+        st.rerun()
+
+    with st.expander("Preview: original vs duplicate pairs in the selected dataset"):
+        try:
+            df(_febrl_preview(choice))
+        except (FileNotFoundError, ValueError) as exc:
+            st.info(f"Preview unavailable: {exc}")
+
+
+@st.cache_data(show_spinner=False)
+def _febrl_preview(dataset: str) -> pd.DataFrame:
+    from data.febrl_loader import load_bundled, preview_frame
+    return preview_frame(load_bundled(dataset), n=10)
 
 
 # ======================================================================

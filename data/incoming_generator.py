@@ -89,8 +89,10 @@ def typo(word: str, rng: random.Random) -> str:
     return word[:i] + word[i + 1] + word[i] + word[i + 2:]
 
 
-def spelling_variation(name: str, rng: random.Random) -> str:
-    parts = name.split()
+def spelling_variation(name: str | None, rng: random.Random) -> str | None:
+    parts = (name or "").split()
+    if not parts:
+        return name
     idx = rng.randrange(len(parts))
     parts[idx] = typo(parts[idx], rng)
     return " ".join(parts)
@@ -104,7 +106,9 @@ def word_order_variation(name: str, rng: random.Random) -> str:
     return ", ".join(parts) if rng.random() < 0.3 else " ".join(parts)
 
 
-def phone_format_variation(phone: str, rng: random.Random) -> str:
+def phone_format_variation(phone: str | None, rng: random.Random) -> str | None:
+    if not phone or len(phone) < 10:
+        return phone                      # nothing to reformat (missing or non-Indian identifier)
     formats = [
         f"+91 {phone}", f"+91-{phone}", f"0{phone}", f"+91 {phone[:5]} {phone[5:]}",
         f"{phone[:5]}-{phone[5:]}", f"(+91) {phone}", f"91{phone}", f"{phone[:3]} {phone[3:6]} {phone[6:]}",
@@ -112,7 +116,9 @@ def phone_format_variation(phone: str, rng: random.Random) -> str:
     return rng.choice(formats)
 
 
-def address_variation(address: str, rng: random.Random) -> str:
+def address_variation(address: str | None, rng: random.Random) -> str | None:
+    if not address:
+        return address
     out = address
     for pattern, options in ADDRESS_EXPANSIONS:
         if re.search(pattern, out):
@@ -294,7 +300,7 @@ def generate_incoming(master_records: list[dict], n: int, match_pct: float = 70,
         else:
             base = next_master()
             twin = make_twin(base, rng, used_emails, used_phones)
-            twin = {"entity_id": entity_id_for(entity_index), **twin, "source": "synthetic-twin"}
+            twin = {**twin, "entity_id": entity_id_for(entity_index), "source": "synthetic-twin"}
             entity_index += 1
             new_master.append(twin)
         add(derive(base, "ambiguous", rng), "ambiguous", base["entity_id"], "MATCH")

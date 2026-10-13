@@ -130,6 +130,23 @@ SQLite file `storage/smm.db` (created automatically; git-ignored). Tables (SQLAl
 
 Because the generator knows the source record, it writes a **ground-truth label** for every row, which is what makes precision/recall measurable in the demo.
 
+### FEBRL benchmark datasets (independent evaluation)
+
+Besides its own generator, the system can load the **FEBRL** record-linkage benchmark (Freely Extensible Biomedical Record Linkage, Australian National University – Christen & Churches). FEBRL datasets are the standard public test sets for entity-resolution algorithms; the CSV copies in `data/febrl/` come from the open-source `recordlinkage` project's redistribution.
+
+| Dataset | Content |
+|---|---|
+| dataset1 | 500 originals + 500 duplicates (1 per original) |
+| dataset2 | 4,000 originals + 1,000 duplicates (up to 5 per original) |
+| dataset3 | 2,000 originals + 3,000 duplicates (up to 5 per original) |
+| dataset4 | 4a = 5,000 originals, 4b = 5,000 duplicates |
+
+Every record ID carries the truth: `rec-1070-org` is an original, `rec-1070-dup-0` a deliberately corrupted duplicate (typos, swapped name parts, missing values, changed suburb/postcode, wrong DOB digits). The loader (`data/febrl_loader.py`) puts **originals into the master** (entity `F01070`), **duplicates into an incoming batch**, and the ID link becomes the **ground-truth label**. A configurable share of originals (default 10 %) is **held out** of the master so their duplicates become true NO_MATCH cases – that is what yields true negatives and a meaningful false-positive rate.
+
+Column mapping: `given_name + surname → name`, `street_number + address_1 + address_2 → address`, `suburb/state/postcode → city/state/postal_code`, `date_of_birth (YYYYMMDD) → DOB`. FEBRL has no e-mail, phone or company; the numeric `soc_sec_id` can optionally be loaded into the **Phone (identifier) slot** so the identifier blocking pass and exact-ID rule are exercised, and the missing fields are handled by weight re-normalization.
+
+Load it from **Master Data → Benchmark dataset – FEBRL** or `python -m database.seed_database --febrl dataset1 --holdout 10`. Reference results with the default v1.0 configuration (10 % hold-out): dataset1 – precision 100 %, recall 88.7 %, F1 94.0, FPR 0 %; dataset4 – precision 100 %, recall 90.9 %, F1 95.2, FPR 0 %, candidate reduction 99.98 %. The missed matches are heavily corrupted duplicates that fall below the manual-review threshold – a useful, honest illustration of the precision/recall trade-off the thresholds control.
+
 ## 6. Normalization
 
 `matching/preprocessing.py` – original values are always kept next to the normalized ones.
